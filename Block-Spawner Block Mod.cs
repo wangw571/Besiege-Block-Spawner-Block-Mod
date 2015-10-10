@@ -20,6 +20,7 @@ namespace Blocks
                 .Obj(new List<Obj> { new Obj("BlockSpawnerBlock.obj", new VisualOffset(Vector3.one, Vector3.zero, Vector3.zero)) })
                 .Scripts(new Type[] { typeof(blockSpawnerBlockS) })
                 .Properties(new BlockProperties().KeyBinding("Spawn Block", "v")
+                                                 .ToggleModeEnabled("Don't add speed", false)
                                                  .CanBeDamaged(Mathf.Infinity)
                                                  .Slider("Block ID", 0, 55, 23)
                                                  )
@@ -42,7 +43,7 @@ namespace Blocks
     public class blockSpawnerBlockS : BlockScript
     {
         private string key1;
-        private string key2;
+        private bool toggle;
         private int sliderValve;
         private AudioSource Audio;
         private int countdown;
@@ -54,7 +55,7 @@ namespace Blocks
         {
 
             key1 = this.GetComponent<MyBlockInfo>().key1;
-            key2 = this.GetComponent<MyBlockInfo>().key2;
+            toggle = this.GetComponent<MyBlockInfo>().toggleModeEnabled;
             sliderValve = (int)this.GetComponent<MyBlockInfo>().sliderValue;
 
             Audio = this.gameObject.AddComponent<AudioSource>();
@@ -73,8 +74,10 @@ namespace Blocks
                 if (Input.GetKey(key1) && countdown == 0)
                 {
                         GameObject component = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                        component.rigidbody.isKinematic = false;
+                    component.rigidbody.isKinematic = false;
+                    if (!toggle) { component.rigidbody.velocity = this.rigidbody.velocity; }
                     component.transform.parent = this.transform.parent;
+                    
                     Audio.Play();
                     countdown = 25;
                 }
