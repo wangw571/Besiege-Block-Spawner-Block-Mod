@@ -60,6 +60,7 @@ namespace Blocks
         protected MKey Key1;
         protected MSlider 模块ID;
         protected MSlider 生成间隔;
+        protected MSlider 生成大小;
         protected MToggle 继承速度;
         private int sliderValve;
         private AudioSource Audio;
@@ -83,6 +84,12 @@ namespace Blocks
                                    0.25f,            //默认值
                                     0f,          //最小值
                                     10f);           //最大值
+
+            生成大小 = AddSlider("Block Scale",       //滑条信息
+                                    "Scale",       //名字
+                                    1f,            //默认值
+                                    0.01f,          //最小值
+                                    100f);           //最大值
 
             继承速度 = AddToggle("Inherit My Velocity",   //toggle信息
                                        "IMV",       //名字
@@ -129,10 +136,12 @@ namespace Blocks
             {
                 if (Key1.IsDown && countdown == 0)
                 {
-                    GameObject component = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    component.GetComponent<Rigidbody>().isKinematic = false;
-                    if (继承速度.IsActive) { component.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
-                    component.transform.SetParent(Machine.Active().SimulationMachine);
+                    GameObject Nlock = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                    Destroy(Nlock.GetComponent<HighlightController>());
+                    Nlock.transform.localScale *= 生成大小.Value;
+                    Nlock.GetComponent<Rigidbody>().isKinematic = false;
+                    if (继承速度.IsActive) { Nlock.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
+                    Nlock.transform.SetParent(Machine.Active().SimulationMachine);
 
                     Audio.Play();
                     float ctdTemp = 生成间隔.Value * 100;
