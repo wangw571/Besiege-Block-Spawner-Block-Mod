@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using spaar.ModLoader;
 using TheGuysYouDespise;
@@ -8,33 +9,47 @@ namespace Blocks
 {
     public class BlockSpawnerBlockMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.1"); } }
+        public override Version Version { get { return new Version("1.2"); } }
         public override string Name { get { return "BlockSpawnerBlockMod)"; } }
         public override string DisplayName { get { return "Block-Spawner Block Mod"; } }
-        public override string BesiegeVersion { get { return "v0.11"; } }
+        public override string BesiegeVersion { get { return "v0.25"; } }
         public override string Author { get { return "覅是"; } }
         protected Block blockSpawnerBlock = new Block()
-                .ID(519)
-                .TextureFile("BlockSpawnerBlockTexture.png")
-                .BlockName("Block-Spawner Block")
-                .Obj(new List<Obj> { new Obj("BlockSpawnerBlock.obj", new VisualOffset(Vector3.one, Vector3.zero, Vector3.zero)) })
-                .Scripts(new Type[] { typeof(blockSpawnerBlockS) })
-                .Properties(new BlockProperties().KeyBinding("Spawn Block", "v")
-                                                 .ToggleModeEnabled("Don't add speed", false)
-                                                 .CanBeDamaged(Mathf.Infinity)
-                                                 .Slider("Block ID", 0, 55, 23)
-                                                 )
-                .Mass(0.5f)
-                .IconOffset(new Icon(1f, new Vector3(0f, 0f, 0f), new Vector3(-90f, 45f, 0f)))//第一个float是图标缩放，五六七是我找的比较好的角度
-                .ShowCollider(false)
-                .AddingPoints(new List<AddingPoint> { new BasePoint(true, true) })
-                .CompoundCollider(new List<ColliderComposite> {new ColliderComposite(new Vector3(1,1,1), new Vector3(0f, 0f, 0.5f), new Vector3(0f, 0f, 0f)) })
-                .NeededResources(new List<NeededResource> { new NeededResource(ResourceType.Audio, "paaaa.ogg") }//需要的资源，例如音乐
+            .ID(519)
+            .BlockName("Block-Spawner Block")
+            .Obj(new List<Obj> { new Obj("BlockSpawnerBlock.obj", //Obj
+                                         "BlockSpawnerBlockTexture.png", //贴图
+                                         new VisualOffset(new Vector3(1f, 1f, 1f), //Scale
+                                                          new Vector3(0f, 0f, 0f), //Position
+                                                          new Vector3(0f, 0f, 0f)))//Rotation
+            })
+            ///在UI下方的选模块时的模样
+            .IconOffset(new Icon(new Vector3(1.30f, 1.30f, 1.30f),  //Scale
+                                 new Vector3(-0.11f, -0.13f, 0.00f),  //Position
+                                 new Vector3(45f, 45f, 45f))) //Rotation
+            .Components(new Type[] {typeof(blockSpawnerBlockS),})
 
-            );
+            ///给搜索用的关键词
+            .Properties(new BlockProperties().SearchKeywords(new string[] {
+                                                             "Block",
+                                                             "模块生成模块",
+                                                             "Spawner",
+                                             }))
+            .Mass(0.5f)
+            .ShowCollider(false)
+            .CompoundCollider(new List<ColliderComposite> {new ColliderComposite(new Vector3(1, 1, 1), new Vector3(0f, 0f, 0.5f), new Vector3(0f, 0f, 0f))})
+            .NeededResources(new List<NeededResource> {
+                                new NeededResource(ResourceType.Audio,("paaaa.ogg"))
+            })
+            .AddingPoints(new List<AddingPoint> {
+                               (AddingPoint)new BasePoint(true, true)
+                                                .Motionable(false,false,false)
+                                                .SetStickyRadius(0.5f),
+            });
+
         public override void OnLoad()
         {
-            LoadFancyBlock(blockSpawnerBlock);//加载该模块
+            LoadBlock(blockSpawnerBlock);//加载该模块
         }
         public override void OnUnload() { }
     }
@@ -42,42 +57,76 @@ namespace Blocks
 
     public class blockSpawnerBlockS : BlockScript
     {
-        private string key1;
-        private bool toggle;
+        protected MKey Key1;
+        protected MSlider 模块ID;
+        protected MToggle 继承速度;
         private int sliderValve;
         private AudioSource Audio;
         private int countdown;
 
 
+        public override void SafeAwake()
+        {
+            Key1 = AddKey("Spawn block", //按键信息
+                                 "Spawn",           //名字
+                                 KeyCode.V);       //默认按键
 
+            模块ID = AddSlider("Block ID",       //滑条信息
+                                    "ID",       //名字
+                                   23.5f,            //默认值
+                                    0f,          //最小值
+                                    57f);           //最大值
+
+            继承速度 = AddToggle("Inherit My Velocity",   //toggle信息
+                                       "IMV",       //名字
+                                       true);             //默认状态
+        }
+
+        protected virtual IEnumerator UpdateMapper()
+        {
+            if (BlockMapper.CurrentInstance == null)
+                yield break;
+            while (Input.GetMouseButton(0))
+                yield return null;
+            BlockMapper.CurrentInstance.Copy();
+            BlockMapper.CurrentInstance.Paste();
+            yield break;
+        }
+        public override void OnSave(BlockXDataHolder data)
+        {
+            SaveMapperValues(data);
+        }
+        public override void OnLoad(BlockXDataHolder data)
+        {
+            LoadMapperValues(data);
+            if (data.WasSimulationStarted) return;
+        }
 
         protected override void OnSimulateStart()
         {
-
-            key1 = this.GetComponent<MyBlockInfo>().key1;
-            toggle = this.GetComponent<MyBlockInfo>().toggleModeEnabled;
-            sliderValve = (int)this.GetComponent<MyBlockInfo>().sliderValue;
-
+            sliderValve = (int)模块ID.Value;
             Audio = this.gameObject.AddComponent<AudioSource>();
-            Audio.clip = new WWW("File:///" + Application.dataPath + "/Mods/Blocks/Resources/paaaa.ogg").audioClip;
+            Audio.clip = resources["paaaa.ogg"].audioClip;
             Audio.loop = false;
+            Audio.volume = 70;
             countdown = 0;
 
         }
         protected override void OnSimulateFixedUpdate()
-        {if (countdown > 0)
+        {
+            if (countdown > 0)
             {
                 countdown -= 1;
             }
             if (AddPiece.isSimulating)
             {
-                if (Input.GetKey(key1) && countdown == 0)
+                if (Key1.IsDown && countdown == 0)
                 {
-                        GameObject component = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    component.rigidbody.isKinematic = false;
-                    if (!toggle) { component.rigidbody.velocity = this.rigidbody.velocity; }
-                    component.transform.parent = this.transform.parent;
-                    
+                    GameObject component = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                    component.GetComponent<Rigidbody>().isKinematic = false;
+                    if (继承速度.IsActive) { component.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
+                    //component.transform.SetParent(this.transform.parent);
+
                     Audio.Play();
                     countdown = 25;
                 }
