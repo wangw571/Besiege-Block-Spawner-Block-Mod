@@ -59,6 +59,7 @@ namespace Blocks
     {
         protected MKey Key1;
         protected MSlider 模块ID;
+        protected MSlider 生成间隔;
         protected MToggle 继承速度;
         private int sliderValve;
         private AudioSource Audio;
@@ -76,6 +77,12 @@ namespace Blocks
                                    23.5f,            //默认值
                                     0f,          //最小值
                                     57f);           //最大值
+
+            生成间隔 = AddSlider("Spawn Frequency",       //滑条信息
+                                    "Freq",       //名字
+                                   0.25f,            //默认值
+                                    0f,          //最小值
+                                    10f);           //最大值
 
             继承速度 = AddToggle("Inherit My Velocity",   //toggle信息
                                        "IMV",       //名字
@@ -125,10 +132,11 @@ namespace Blocks
                     GameObject component = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
                     component.GetComponent<Rigidbody>().isKinematic = false;
                     if (继承速度.IsActive) { component.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
-                    //component.transform.SetParent(this.transform.parent);
+                    component.transform.SetParent(Machine.Active().SimulationMachine);
 
                     Audio.Play();
-                    countdown = 25;
+                    float ctdTemp = 生成间隔.Value * 100;
+                        countdown = (int)ctdTemp ;
                 }
 
             }
