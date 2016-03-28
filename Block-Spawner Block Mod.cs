@@ -9,10 +9,10 @@ namespace Blocks
 {
     public class BlockSpawnerBlockMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.2"); } }
+        public override Version Version { get { return new Version("1.5"); } }
         public override string Name { get { return "BlockSpawnerBlockMod)"; } }
         public override string DisplayName { get { return "Block-Spawner Block Mod"; } }
-        public override string BesiegeVersion { get { return "v0.25"; } }
+        public override string BesiegeVersion { get { return "v0.27"; } }
         public override string Author { get { return "覅是"; } }
         protected Block blockSpawnerBlock = new Block()
             .ID(519)
@@ -58,11 +58,13 @@ namespace Blocks
     public class blockSpawnerBlockS : BlockScript
     {
         protected MKey Key1;
+        protected MToggle FunnyMode;
+        protected MToggle OldMode;
         protected MSlider 模块ID;
         protected MSlider 生成间隔;
         protected MSlider 生成大小;
         protected MToggle 继承速度;
-        private int sliderValve;
+        public int BlockID;
         private AudioSource Audio;
         private int countdown;
 
@@ -77,10 +79,10 @@ namespace Blocks
                                     "ID",       //名字
                                    23.5f,            //默认值
                                     0f,          //最小值
-                                    57f);           //最大值
+                                    61f);           //最大值
 
             生成间隔 = AddSlider("Spawn Frequency",       //滑条信息
-                                    "Freq",       //名字
+                                    "Freq",       //名字 
                                    0.25f,            //默认值
                                     0f,          //最小值
                                     10f);           //最大值
@@ -94,6 +96,12 @@ namespace Blocks
             继承速度 = AddToggle("Inherit My Velocity",   //toggle信息
                                        "IMV",       //名字
                                        true);             //默认状态
+            FunnyMode = AddToggle("Funny Mode",   //toggle信息
+                                       "FMD",       //名字
+                                       false);             //默认状态
+            OldMode = AddToggle("Old Mode",   //toggle信息
+                                       "OMD",       //名字
+                                       false);             //默认状态
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -106,11 +114,11 @@ namespace Blocks
             BlockMapper.CurrentInstance.Paste();
             yield break;
         }
-        public override void OnSave(BlockXDataHolder data)
+        public override void OnSave(XDataHolder data)
         {
             SaveMapperValues(data);
         }
-        public override void OnLoad(BlockXDataHolder data)
+        public override void OnLoad(XDataHolder data)
         {
             LoadMapperValues(data);
             if (data.WasSimulationStarted) return;
@@ -118,11 +126,11 @@ namespace Blocks
 
         protected override void OnSimulateStart()
         {
-            sliderValve = (int)模块ID.Value;
+            BlockID = (int)模块ID.Value;
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["paaaa.ogg"].audioClip;
             Audio.loop = false;
-            Audio.volume = 70;
+            Audio.volume = 0.01f; 
             countdown = 0;
 
         }
@@ -136,13 +144,26 @@ namespace Blocks
             {
                 if (Key1.IsDown && countdown == 0)
                 {
-                    GameObject Nlock = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[sliderValve].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    Destroy(Nlock.GetComponent<HighlightController>());
+                    GameObject Nlock;
+                    if (OldMode.IsActive)
+                    { 
+                         Nlock = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                    }
+                    else
+                    {
+                        Nlock = (GameObject)UnityEngine.Object.Instantiate(MachineObjectTracker.Instance.AllPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                    }
+                    if (FunnyMode.IsActive)
+                    {
+                        BlockID++;
+                        Debug.Log(BlockID);
+                    }
                     Nlock.transform.localScale *= 生成大小.Value;
                     Nlock.GetComponent<Rigidbody>().isKinematic = false;
                     if (继承速度.IsActive) { Nlock.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
                     Nlock.transform.SetParent(Machine.Active().SimulationMachine);
 
+                    Audio.volume = 0.05f * 10/Vector3.Distance(this.transform.position, Camera.main.transform.position);
                     Audio.Play();
                     float ctdTemp = 生成间隔.Value * 100;
                         countdown = (int)ctdTemp ;
