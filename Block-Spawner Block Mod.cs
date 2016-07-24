@@ -9,10 +9,10 @@ namespace Blocks
 {
     public class BlockSpawnerBlockMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.5"); } }
+        public override Version Version { get { return new Version("1.6"); } }
         public override string Name { get { return "BlockSpawnerBlockMod)"; } }
         public override string DisplayName { get { return "Block-Spawner Block Mod"; } }
-        public override string BesiegeVersion { get { return "v0.27"; } }
+        public override string BesiegeVersion { get { return "v0.3"; } }
         public override string Author { get { return "覅是"; } }
         protected Block blockSpawnerBlock = new Block()
             .ID(519)
@@ -59,7 +59,6 @@ namespace Blocks
     {
         protected MKey Key1;
         protected MToggle FunnyMode;
-        protected MToggle OldMode;
         protected MSlider 模块ID;
         protected MSlider 生成间隔;
         protected MSlider 生成大小;
@@ -98,9 +97,6 @@ namespace Blocks
                                        true);             //默认状态
             FunnyMode = AddToggle("Funny Mode",   //toggle信息
                                        "FMD",       //名字
-                                       false);             //默认状态
-            OldMode = AddToggle("Old Mode",   //toggle信息
-                                       "OMD",       //名字
                                        false);             //默认状态
         }
 
@@ -144,25 +140,21 @@ namespace Blocks
             {
                 if (Key1.IsDown && countdown == 0)
                 {
-                    GameObject Nlock;
-                    if (OldMode.IsActive)
-                    { 
-                         Nlock = (GameObject)UnityEngine.Object.Instantiate(Game.AddPiece.blockTypes[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    }
-                    else
-                    {
-                        Nlock = (GameObject)UnityEngine.Object.Instantiate(MachineObjectTracker.Instance.AllPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    }
+                    GameObject Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                    
                     if (FunnyMode.IsActive)
                     {
                         BlockID++;
+                        if(BlockID > PrefabMaster.BlockPrefabs.Count)
+                        {
+                            BlockID = 0;
+                        }
                         Debug.Log(BlockID);
                     }
                     Nlock.transform.localScale *= 生成大小.Value;
                     Nlock.GetComponent<Rigidbody>().isKinematic = false;
                     if (继承速度.IsActive) { Nlock.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
                     Nlock.transform.SetParent(Machine.Active().SimulationMachine);
-
                     Audio.volume = 0.05f * 10/Vector3.Distance(this.transform.position, Camera.main.transform.position);
                     Audio.Play();
                     float ctdTemp = 生成间隔.Value * 100;
