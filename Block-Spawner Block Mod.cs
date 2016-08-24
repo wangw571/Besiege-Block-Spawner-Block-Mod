@@ -1,8 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using spaar.ModLoader;
-using TheGuysYouDespise;
 using UnityEngine;
 
 namespace Blocks
@@ -12,7 +10,7 @@ namespace Blocks
         public override Version Version { get { return new Version("1.6"); } }
         public override string Name { get { return "BlockSpawnerBlockMod)"; } }
         public override string DisplayName { get { return "Block-Spawner Block Mod"; } }
-        public override string BesiegeVersion { get { return "v0.3"; } }
+        public override string BesiegeVersion { get { return "v0.32"; } }
         public override string Author { get { return "覅是"; } }
         protected Block blockSpawnerBlock = new Block()
             .ID(519)
@@ -27,7 +25,7 @@ namespace Blocks
             .IconOffset(new Icon(new Vector3(1.30f, 1.30f, 1.30f),  //Scale
                                  new Vector3(-0.11f, -0.13f, 0.00f),  //Position
                                  new Vector3(45f, 45f, 45f))) //Rotation
-            .Components(new Type[] {typeof(blockSpawnerBlockS),})
+            .Components(new Type[] { typeof(blockSpawnerBlockS), })
 
             ///给搜索用的关键词
             .Properties(new BlockProperties().SearchKeywords(new string[] {
@@ -37,7 +35,7 @@ namespace Blocks
                                              }))
             .Mass(0.5f)
             .ShowCollider(false)
-            .CompoundCollider(new List<ColliderComposite> {new ColliderComposite(new Vector3(1, 1, 1), new Vector3(0f, 0f, 0.5f), new Vector3(0f, 0f, 0f))})
+            .CompoundCollider(new List<ColliderComposite> { new ColliderComposite(new Vector3(1, 1, 1), new Vector3(0f, 0f, 0.5f), new Vector3(0f, 0f, 0f)) })
             .NeededResources(new List<NeededResource> {
                                 new NeededResource(ResourceType.Audio,("paaaa.ogg"))
             })
@@ -126,7 +124,7 @@ namespace Blocks
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["paaaa.ogg"].audioClip;
             Audio.loop = false;
-            Audio.volume = 0.01f; 
+            Audio.volume = 0.01f;
             countdown = 0;
 
         }
@@ -136,31 +134,35 @@ namespace Blocks
             {
                 countdown -= 1;
             }
-            if (AddPiece.isSimulating)
+            if (Key1.IsDown && countdown == 0)
             {
-                if (Key1.IsDown && countdown == 0)
+                GameObject Nlock;
+                try
                 {
-                    GameObject Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                    
-                    if (FunnyMode.IsActive)
-                    {
-                        BlockID++;
-                        if(BlockID > PrefabMaster.BlockPrefabs.Count)
-                        {
-                            BlockID = 0;
-                        }
-                        Debug.Log(BlockID);
-                    }
-                    Nlock.transform.localScale *= 生成大小.Value;
-                    Nlock.GetComponent<Rigidbody>().isKinematic = false;
-                    if (继承速度.IsActive) { Nlock.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
-                    Nlock.transform.SetParent(Machine.Active().SimulationMachine);
-                    Audio.volume = 0.05f * 10/Vector3.Distance(this.transform.position, Camera.main.transform.position);
-                    Audio.Play();
-                    float ctdTemp = 生成间隔.Value * 100;
-                        countdown = (int)ctdTemp ;
+                    Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
                 }
-
+                catch
+                {
+                    BlockID = 0;
+                    Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
+                }
+                if (FunnyMode.IsActive)
+                {
+                    BlockID++;
+                    Debug.Log(BlockID);
+                    if (BlockID > PrefabMaster.BlockPrefabs.Count)
+                    {
+                        BlockID = 0;
+                    }
+                }
+                Nlock.transform.localScale *= 生成大小.Value;
+                Nlock.GetComponent<Rigidbody>().isKinematic = false;
+                if (继承速度.IsActive) { Nlock.GetComponent<Rigidbody>().velocity = this.rigidbody.velocity; }
+                Nlock.transform.SetParent(Machine.Active().SimulationMachine);
+                Audio.volume = 0.05f * 10 / Vector3.Distance(this.transform.position, Camera.main.transform.position);
+                Audio.Play();
+                float ctdTemp = 生成间隔.Value * 100;
+                countdown = (int)ctdTemp;
             }
             //Physics stuff
 
