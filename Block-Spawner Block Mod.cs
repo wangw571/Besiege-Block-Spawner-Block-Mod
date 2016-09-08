@@ -7,11 +7,11 @@ namespace Blocks
 {
     public class BlockSpawnerBlockMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.6"); } }
+        public override Version Version { get { return new Version("2.0"); } }
         public override string Name { get { return "BlockSpawnerBlockMod)"; } }
         public override string DisplayName { get { return "Block-Spawner Block Mod"; } }
         public override string BesiegeVersion { get { return "v0.32"; } }
-        public override string Author { get { return "覅是"; } }
+        public override string Author { get { return "覅是 (Thanks ITR for Block Mapper Support!)"; } }
         protected Block blockSpawnerBlock = new Block()
             .ID(519)
             .BlockName("Block-Spawner Block")
@@ -57,14 +57,17 @@ namespace Blocks
     {
         protected MKey Key1;
         protected MToggle FunnyMode;
-        protected MSlider 模块ID;
+        protected MToggle modifyBlock;
+        protected MMenu 模块ID;
         protected MSlider 生成间隔;
         protected MSlider 生成大小;
         protected MToggle 继承速度;
-        public int BlockID;
         private AudioSource Audio;
-        private int countdown;
 
+        private List<int> 对应的IDs = new List<int>();
+        private float countdown;
+        public BlockBehaviour blockToSpawn;
+        private Dictionary<int, BlockPrefab>.Enumerator funEnumerator;
 
         public override void SafeAwake()
         {
@@ -72,11 +75,24 @@ namespace Blocks
                                  "Spawn",           //名字
                                  KeyCode.V);       //默认按键
 
-            模块ID = AddSlider("Block ID",       //滑条信息
-                                    "ID",       //名字
-                                   23.5f,            //默认值
-                                    0f,          //最小值
-                                    61f);           //最大值
+            List<string> list = new List<string>();
+            foreach (BlockPrefab pair in PrefabMaster.BlockPrefabs.Values)
+            {
+                list.Add(pair.gameObject.GetComponent<MyBlockInfo>().blockName);
+                对应的IDs.Add(pair.ID);
+            }
+            模块ID = AddMenu("Block", 0, list);
+            模块ID.ValueChanged += IDChanged;
+
+            modifyBlock = AddToggle("Modify Spawned Block", "modifySpawnedBlock", false);
+            modifyBlock.Toggled += (b) => {
+                if (b)
+                {
+                    SpawnChild();
+                    modifyBlock.IsActive = false;
+                    BlockMapper.Open(blockToSpawn);
+                }
+            };
 
             生成间隔 = AddSlider("Spawn Frequency",       //滑条信息
                                     "Freq",       //名字 
@@ -96,6 +112,42 @@ namespace Blocks
             FunnyMode = AddToggle("Funny Mode",   //toggle信息
                                        "FMD",       //名字
                                        false);             //默认状态
+            FunnyMode.Toggled += (t) => {
+                modifyBlock.DisplayInMapper = !t;
+            };
+
+
+        }
+
+        private void SpawnChild()
+        {
+            if (blockToSpawn != null)
+            {
+                if (blockToSpawn.GetBlockID() == 模块ID.Value)
+                {
+                    return;
+                }
+                Destroy(blockToSpawn.gameObject);
+            }
+            if (!FunnyMode.IsActive)
+            {
+                blockToSpawn = Instantiate(PrefabMaster.BlockPrefabs[对应的IDs[模块ID.Value]].blockBehaviour);
+                blockToSpawn.gameObject.SetActive(false);
+                //blockToSpawn.transform.SetParent(this.transform);
+            }
+            else
+            {
+                funEnumerator = PrefabMaster.BlockPrefabs.GetEnumerator();
+                while (funEnumerator.MoveNext())
+                {
+                    if (funEnumerator.Current.Value.ID == 对应的IDs[模块ID.Value])
+                    {
+                        return;
+                    }
+                }
+                funEnumerator = PrefabMaster.BlockPrefabs.GetEnumerator();
+                funEnumerator.MoveNext();
+            }
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -110,50 +162,68 @@ namespace Blocks
         }
         public override void OnSave(XDataHolder data)
         {
+            SpawnChild();
             SaveMapperValues(data);
+            if (blockToSpawn != null)
+            {
+                blockToSpawn.OnSave(data);
+            }
         }
         public override void OnLoad(XDataHolder data)
         {
             LoadMapperValues(data);
-            if (data.WasSimulationStarted) return;
+            if (blockToSpawn == null && !FunnyMode.IsActive)
+            {
+                SpawnChild();
+            }
+            if (blockToSpawn != null && !StatMaster.isSimulating)
+            {
+                blockToSpawn.gameObject.SetActive(true);
+                blockToSpawn.OnLoad(data);
+                blockToSpawn.gameObject.SetActive(false);
+            }
         }
 
         protected override void OnSimulateStart()
         {
-            BlockID = (int)模块ID.Value;
-            Audio = this.gameObject.AddComponent<AudioSource>();
+            Audio = gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["paaaa.ogg"].audioClip;
             Audio.loop = false;
             Audio.volume = 0.01f;
             countdown = 0;
-
         }
+
         protected override void OnSimulateFixedUpdate()
         {
             if (countdown > 0)
             {
-                countdown -= 1;
+                countdown -= Time.fixedDeltaTime;
             }
-            if (Key1.IsDown && countdown == 0)
+            if (Key1.IsDown && countdown <= 0)
             {
                 GameObject Nlock;
-                try
-                {
-                    Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                }
-                catch
-                {
-                    BlockID = 0;
-                    Nlock = (GameObject)UnityEngine.Object.Instantiate(PrefabMaster.BlockPrefabs[BlockID].gameObject, this.transform.position + this.transform.forward, this.transform.rotation);
-                }
                 if (FunnyMode.IsActive)
                 {
-                    BlockID++;
-                    Debug.Log(BlockID);
-                    if (BlockID > PrefabMaster.BlockPrefabs.Count)
+                    Nlock = (GameObject)Instantiate(funEnumerator.Current.Value.gameObject,
+                        this.transform.position + this.transform.forward, this.transform.rotation);
+                    if (!funEnumerator.MoveNext())
                     {
-                        BlockID = 0;
+                        funEnumerator = PrefabMaster.BlockPrefabs.GetEnumerator();
+                        funEnumerator.MoveNext();
                     }
+                }
+                else
+                {
+                    if (blockToSpawn == null)
+                    {
+                        SpawnChild();
+                    }
+                    Nlock = (GameObject)Instantiate(blockToSpawn.gameObject,
+                    transform.position + this.transform.forward, this.transform.rotation);
+                    Nlock.SetActive(true);
+                    XDataHolder xDataHolder = new XDataHolder { WasSimulationStarted = true };
+                    blockToSpawn.OnSave(xDataHolder);
+                    Nlock.GetComponent<BlockBehaviour>().OnLoad(xDataHolder);
                 }
                 Nlock.transform.localScale *= 生成大小.Value;
                 Nlock.GetComponent<Rigidbody>().isKinematic = false;
@@ -161,13 +231,30 @@ namespace Blocks
                 Nlock.transform.SetParent(Machine.Active().SimulationMachine);
                 Audio.volume = 0.05f * 10 / Vector3.Distance(this.transform.position, Camera.main.transform.position);
                 Audio.Play();
-                float ctdTemp = 生成间隔.Value * 100;
-                countdown = (int)ctdTemp;
+                countdown = 生成间隔.Value;
             }
-            //Physics stuff
-
         }
+        //Physics stuff
+        public void IDChanged(int ID)
+        {
+            if (BlockMapper.CurrentInstance == null || BlockMapper.CurrentInstance.Block != this)
+            {
+                SpawnChild();
+            }
+        }
+
+        public override void OnReset()
+        {
+            base.OnReset();
+            SpawnChild();
+        }
+
+        //protected void OnDestroy()
+        //{
+        //    if (blockToSpawn != null)
+        //    {
+        //        Destroy(blockToSpawn.gameObject);
+        //    }
+        //}
     }
-
-
 }
